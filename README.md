@@ -13,7 +13,7 @@ Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp). No cloud, no su
 ## Install
 
 ```bash
-git clone https://github.com/yourusername/whisper-dictate.git
+git clone https://github.com/dalpat/whisper-dictate.git
 cd whisper-dictate
 ./install.sh
 ```
