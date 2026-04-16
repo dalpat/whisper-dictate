@@ -13,15 +13,21 @@ Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp). No cloud, no su
 ## Install
 
 ```bash
-git clone https://github.com/dalpat/whisper-dictate.git
-cd whisper-dictate
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/dalpat/whisper-dictate/main/get.sh | bash
 ```
+
+That's it. Installs dependencies, builds whisper.cpp, downloads the model, and registers the hotkey automatically.
 
 Custom hotkey (default is `Super+Alt+R`):
 
 ```bash
-./install.sh "<Super><Alt>d"
+curl -fsSL https://raw.githubusercontent.com/dalpat/whisper-dictate/main/get.sh | bash -s "<Super><Alt>d"
+```
+
+Custom model:
+
+```bash
+WHISPER_MODEL=base.en bash <(curl -fsSL https://raw.githubusercontent.com/dalpat/whisper-dictate/main/get.sh)
 ```
 
 ## Usage
