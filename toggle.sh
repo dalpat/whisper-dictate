@@ -1,29 +1,66 @@
 #!/bin/bash
 
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIDFILE=/tmp/whisper_rec.pid
 WAVFILE=/tmp/whisper_input.wav
+INDICATOR_PIDFILE=/tmp/whisper_indicator.pid
 WHISPER_BIN="$HOME/whisper.cpp/build/bin/whisper-cli"
-WHISPER_MODEL="${WHISPER_MODEL:-tiny.en}"  # override: WHISPER_MODEL=base.en
+WHISPER_MODEL="${WHISPER_MODEL:-tiny.en}"
 MODEL="$HOME/whisper.cpp/models/ggml-${WHISPER_MODEL}.bin"
-NOTIF_ID=8472
+INDICATOR="$SCRIPT_DIR/indicator"
+
+# Ensure ydotool daemon is running
+pgrep -x ydotoold >/dev/null 2>&1 || ydotoold &>/dev/null &
+sleep 0.2
+
+kill_indicator() {
+    if [ -f "$INDICATOR_PIDFILE" ]; then
+        kill "$(cat "$INDICATOR_PIDFILE")" 2>/dev/null
+        rm -f "$INDICATOR_PIDFILE"
+    fi
+}
 
 if [ -f "$PIDFILE" ]; then
-    kill "$(cat $PIDFILE)" 2>/dev/null && rm "$PIDFILE"
+    # ── Stop recording ──────────────────────────────────────────────────────
+    kill "$(cat "$PIDFILE")" 2>/dev/null
+    rm -f "$PIDFILE"
     sleep 0.2
 
+    kill_indicator
+
+    if [ ! -f "$WAVFILE" ] || [ ! -s "$WAVFILE" ]; then
+        notify-send -t 3000 "Whisper" "No audio captured"
+        exit 0
+    fi
+
     TEXT=$("$WHISPER_BIN" -m "$MODEL" -f "$WAVFILE" -nt -np 2>/dev/null \
-        | grep -v '^\[' | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        | grep -v '^\[' | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
     if [ -n "$TEXT" ]; then
         echo -n "$TEXT" | wl-copy
-        notify-send -r $NOTIF_ID "Whisper" "✓ $TEXT" -t 8000
+        sleep 0.3
+        echo -n "$TEXT" | ydotool type -f - 2>/dev/null
+        if [ -x "$INDICATOR" ]; then
+            "$INDICATOR" "$TEXT" result &
+        else
+            notify-send -t 4000 "Whisper" "✓ $TEXT"
+        fi
     else
-        notify-send -r $NOTIF_ID "Whisper" "No speech detected" -t 3000
+        notify-send -t 3000 "Whisper" "No speech detected"
     fi
 
     rm -f "$WAVFILE"
 else
+    # ── Start recording ─────────────────────────────────────────────────────
     arecord -f S16_LE -r 16000 -c 1 -q "$WAVFILE" &
     echo $! > "$PIDFILE"
-    notify-send -r $NOTIF_ID "Whisper" "🎙 Listening..." -t 60000
+
+    if [ -x "$INDICATOR" ]; then
+        "$INDICATOR" "Listening..." &
+        echo $! > "$INDICATOR_PIDFILE"
+    else
+        notify-send -t 60000 "Whisper" "🎙 Listening..."
+    fi
 fi

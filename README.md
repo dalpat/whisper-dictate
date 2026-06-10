@@ -9,6 +9,8 @@ Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp). No cloud, no su
 - Ubuntu/Debian-based Linux
 - GNOME desktop (Wayland)
 - Microphone
+- `libgtk-3-dev` (for building the indicator overlay)
+- `ydotool` (for auto-typing transcribed text)
 
 ## Install
 
@@ -34,11 +36,9 @@ WHISPER_MODEL=base.en bash <(curl -fsSL https://raw.githubusercontent.com/dalpat
 
 | Action | Result |
 |--------|--------|
-| Press hotkey | 🎙 Listening... |
-| Press hotkey again | Transcribes → copies to clipboard |
-| `Ctrl+V` | Paste anywhere |
-
-A notification shows the transcribed text so you can review before pasting.
+| Press hotkey | Toast overlay with animated waves appears at the bottom |
+| Press hotkey again | Transcribes → auto-types into focused app, result toast shows |
+| `Ctrl+V` | Also available — text is copied to clipboard too |
 
 ## Model Configuration
 
@@ -65,7 +65,8 @@ Multilingual models (without `.en`) also work if you need other languages.
 ## How it works
 
 - `toggle.sh` — the hotkey script. Records audio via `arecord`, transcribes with `whisper-cli`, copies result with `wl-copy`
-- `install.sh` — one-time setup: installs deps, builds whisper.cpp, downloads model, registers GNOME hotkey
+- `indicator.c` — compiled GTK3 toast overlay. Shows a pulsing "Listening..." indicator while recording, auto-dismisses result after transcription
+- `install.sh` — one-time setup: installs deps, builds whisper.cpp + indicator, downloads model, registers GNOME hotkey
 
 ## License
 

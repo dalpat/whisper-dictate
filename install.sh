@@ -14,7 +14,7 @@ MODEL="${WHISPER_MODEL:-tiny.en}"
 info "Installing dependencies..."
 sudo apt update -qq
 sudo apt install -y wl-clipboard alsa-utils libnotify-bin \
-    git cmake build-essential &>/dev/null
+    git cmake build-essential pkg-config libgtk-3-dev ydotool &>/dev/null
 info "Dependencies installed."
 
 # ─── 2. Build whisper.cpp ─────────────────────────────────────────────────────
@@ -29,6 +29,14 @@ info "Building whisper.cpp (this takes ~2 min)..."
 cmake -S "$WHISPER_DIR" -B "$WHISPER_DIR/build" -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON &>/dev/null
 cmake --build "$WHISPER_DIR/build" -j$(nproc) --config Release &>/dev/null
 info "Build complete."
+
+# ─── 2b. Build indicator ────────────────────────────────────────────────────
+info "Building indicator..."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+gcc -o "$SCRIPT_DIR/indicator" "$SCRIPT_DIR/indicator.c" \
+    $(pkg-config --cflags --libs gtk+-3.0) -O2 2>/dev/null
+chmod +x "$SCRIPT_DIR/indicator"
+info "Indicator built."
 
 # ─── 3. Download Model ────────────────────────────────────────────────────────
 if [ -f "$WHISPER_DIR/models/ggml-${MODEL}.bin" ]; then
@@ -57,10 +65,12 @@ gsettings set ${BASE_KEY}.custom-keybinding:${NEW_PATH} command "$TOGGLE_SCRIPT"
 gsettings set ${BASE_KEY}.custom-keybinding:${NEW_PATH} binding "$HOTKEY"
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
+# Convert GTK accel format to human-readable for display
+HOTKEY_DISPLAY=$(echo "$HOTKEY" | sed 's/<Super>/Super + /;s/<Alt>/Alt + /;s/<Ctrl>/Ctrl + /;s/<Shift>/Shift + /;s/<//g;s/>//g;s/ + $//')
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  ✓ whisper-dictate ready!${NC}"
-echo -e "  Hotkey : ${YELLOW}Super + Alt + R${NC}"
+echo -e "  Hotkey : ${YELLOW}${HOTKEY_DISPLAY}${NC}"
 echo -e "  Press once  → starts recording"
 echo -e "  Press again → transcribes, copies to clipboard"
 echo -e "  Model  : ${YELLOW}${MODEL}${NC}  (override: WHISPER_MODEL=base.en ./install.sh)"
