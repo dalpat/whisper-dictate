@@ -79,7 +79,7 @@ stream_loop() {
         # Run whisper-cli on snapshot (suppress noise)
         TEXT=$("$WHISPER_BIN" -m "$MODEL" -f "$SNAPSHOT" -nt -np -sns \
             -nth 0.7 -et 2.0 2>/dev/null \
-            | grep -v '^\[' | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            | grep -v '^\[' | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
         rm -f "$SNAPSHOT"
 
@@ -121,7 +121,7 @@ if [ -f "$PIDFILE" ]; then
     # Final transcription on complete audio (copy only — stream_loop already typed it)
     TEXT=$("$WHISPER_BIN" -m "$MODEL" -f "$WAVFILE" -nt -np -sns \
         -nth 0.7 -et 2.0 2>/dev/null \
-        | grep -v '^\[' | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        | grep -v '^\[' | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
     if [ -n "$TEXT" ]; then
         echo -n "$TEXT" | wl-copy
