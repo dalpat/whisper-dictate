@@ -65,6 +65,7 @@ fix_wav_header() {
 # ── Streaming transcription loop ────────────────────────────────────────────
 stream_loop() {
     local last_text=""
+    trap 'exit 0' TERM
     while [ -f "$PIDFILE" ]; do
         # Snapshot the live WAV to avoid read-while-write issues
         if [ -f "$WAVFILE" ] && [ -s "$WAVFILE" ]; then
@@ -102,11 +103,13 @@ stream_loop() {
 
 if [ -f "$PIDFILE" ]; then
     # ── Stop recording ──────────────────────────────────────────────────────
+    # Kill stream loop first to stop mid-stream typing
+    kill_stream
+    sleep 0.3
+
     kill "$(cat "$PIDFILE")" 2>/dev/null
     rm -f "$PIDFILE"
-    sleep 0.2
 
-    kill_stream
     kill_indicator
 
     if [ ! -f "$WAVFILE" ] || [ ! -s "$WAVFILE" ]; then
@@ -115,15 +118,13 @@ if [ -f "$PIDFILE" ]; then
         exit 0
     fi
 
-    # Final transcription on complete audio
+    # Final transcription on complete audio (copy only — stream_loop already typed it)
     TEXT=$("$WHISPER_BIN" -m "$MODEL" -f "$WAVFILE" -nt -np -sns \
         -nth 0.7 -et 2.0 2>/dev/null \
         | grep -v '^\[' | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
     if [ -n "$TEXT" ]; then
         echo -n "$TEXT" | wl-copy
-        sleep 0.3
-        echo -n "$TEXT" | ydotool type -f - 2>/dev/null
         if [ -x "$INDICATOR" ]; then
             "$INDICATOR" "$TEXT" result &
         else
