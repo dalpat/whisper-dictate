@@ -3,19 +3,27 @@
  *
  * Usage:  indicator "message"           (recording mode, stays until killed)
  *         indicator "message" result    (result mode, auto-dismisses after 4s)
+ *         indicator "message" stream    (stream mode, polls /tmp/whisper_stream.txt)
  */
 
 #include <gtk/gtk.h>
 #include <string.h>
 #include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #define N_BARS 5
 #define N_FRAMES 12
+#define STREAM_PATH "/tmp/whisper_stream.txt"
+#define PID_PATH "/tmp/whisper_rec.pid"
 
 static GtkWidget *window;
 static GtkWidget *wave_l[N_BARS];
 static GtkWidget *wave_r[N_BARS];
+static GtkWidget *stream_label;
 static int frame = 0;
+static int is_stream = 0;
+static char last_content[2048] = "";
 
 static const int wave_data[N_FRAMES][N_BARS] = {
     {1,2,3,2,1}, {1,3,4,3,1}, {2,3,4,3,2}, {2,4,3,4,2},
@@ -42,6 +50,30 @@ static gboolean on_wave(gpointer d) {
         gtk_label_set_text(GTK_LABEL(wave_r[i]), bar_char(wave_data[frame][N_BARS-1-i]));
     }
     return TRUE;
+}
+
+static gboolean on_stream_poll(gpointer d) {
+    (void)d;
+    if (!is_stream) return FALSE;
+
+    FILE *f = fopen(STREAM_PATH, "r");
+    if (f) {
+        char buf[2048] = "";
+        if (fgets(buf, sizeof(buf), f)) {
+            buf[strcspn(buf, "\n")] = 0;
+            if (strcmp(buf, last_content) != 0) {
+                strncpy(last_content, buf, sizeof(last_content) - 1);
+                last_content[sizeof(last_content) - 1] = '\0';
+                if (stream_label) {
+                    gtk_label_set_text(GTK_LABEL(stream_label),
+                                       strlen(last_content) > 0 ? last_content : " ");
+                }
+            }
+        }
+        fclose(f);
+    }
+
+    return access(PID_PATH, F_OK) == 0;
 }
 
 static gboolean on_draw(GtkWidget *w, cairo_t *cr) {
@@ -78,6 +110,7 @@ int main(int argc, char *argv[]) {
     int is_result = 0;
     if (argc > 1) msg = argv[1];
     if (argc > 2 && strcmp(argv[2], "result") == 0) is_result = 1;
+    if (argc > 2 && strcmp(argv[2], "stream") == 0) is_stream = 1;
 
     /* Force XWayland so we control window position (Wayland compositor ignores move requests) */
     g_setenv("GDK_BACKEND", "x11", TRUE);
@@ -132,6 +165,30 @@ int main(int argc, char *argv[]) {
         gtk_style_context_add_class(gtk_widget_get_style_context(txt), "msg");
         gtk_box_pack_start(GTK_BOX(row), txt, FALSE, FALSE, 0);
         g_timeout_add(4000, on_timeout, NULL);
+    } else if (is_stream) {
+        /* Stream mode: waves + mic + live text label */
+        for (int i = 0; i < N_BARS; i++) {
+            wave_l[i] = gtk_label_new(" ");
+            gtk_style_context_add_class(gtk_widget_get_style_context(wave_l[i]), "bar");
+            gtk_box_pack_start(GTK_BOX(row), wave_l[i], FALSE, FALSE, 0);
+        }
+
+        GtkWidget *mic = gtk_label_new("🎙");
+        gtk_style_context_add_class(gtk_widget_get_style_context(mic), "mic");
+        gtk_box_pack_start(GTK_BOX(row), mic, FALSE, FALSE, 6);
+
+        for (int i = 0; i < N_BARS; i++) {
+            wave_r[i] = gtk_label_new(" ");
+            gtk_style_context_add_class(gtk_widget_get_style_context(wave_r[i]), "bar");
+            gtk_box_pack_start(GTK_BOX(row), wave_r[i], FALSE, FALSE, 0);
+        }
+
+        stream_label = gtk_label_new(" ");
+        gtk_style_context_add_class(gtk_widget_get_style_context(stream_label), "msg");
+        gtk_box_pack_start(GTK_BOX(row), stream_label, FALSE, FALSE, 0);
+
+        g_timeout_add(100, on_wave, NULL);
+        g_timeout_add(200, on_stream_poll, NULL);
     } else {
         for (int i = 0; i < N_BARS; i++) {
             wave_l[i] = gtk_label_new(" ");

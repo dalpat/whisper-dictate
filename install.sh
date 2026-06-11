@@ -13,7 +13,7 @@ MODEL="${WHISPER_MODEL:-tiny.en}"
 # ─── 1. Dependencies ──────────────────────────────────────────────────────────
 info "Installing dependencies..."
 sudo apt update -qq
-sudo apt install -y wl-clipboard alsa-utils libnotify-bin \
+sudo apt install -y wl-clipboard pipewire libnotify-bin \
     git cmake build-essential pkg-config libgtk-3-dev ydotool &>/dev/null
 info "Dependencies installed."
 

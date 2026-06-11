@@ -1,6 +1,6 @@
 # whisper-dictate
 
-Offline voice dictation for Linux (GNOME/Wayland). Press a hotkey to start recording, press again to transcribe — text is copied to your clipboard instantly.
+Offline voice dictation for Linux (GNOME/Wayland). Press a hotkey to start recording — text streams live into the overlay and auto-types into your focused app as you speak.
 
 Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp). No cloud, no subscription, no internet required after setup.
 
@@ -9,6 +9,7 @@ Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp). No cloud, no su
 - Ubuntu/Debian-based Linux
 - GNOME desktop (Wayland)
 - Microphone
+- PipeWire (for audio capture via `pw-record`)
 - `libgtk-3-dev` (for building the indicator overlay)
 - `ydotool` (for auto-typing transcribed text)
 
@@ -36,8 +37,9 @@ WHISPER_MODEL=base.en bash <(curl -fsSL https://raw.githubusercontent.com/dalpat
 
 | Action | Result |
 |--------|--------|
-| Press hotkey | Toast overlay with animated waves appears at the bottom |
-| Press hotkey again | Transcribes → auto-types into focused app, result toast shows |
+| Press hotkey | Toast overlay with animated waves appears, streaming begins |
+| Speak | Text appears live in the overlay, auto-types into focused app |
+| Press hotkey again | Final transcription shown, text copied to clipboard |
 | `Ctrl+V` | Also available — text is copied to clipboard too |
 
 ## Model Configuration
@@ -64,8 +66,8 @@ Multilingual models (without `.en`) also work if you need other languages.
 
 ## How it works
 
-- `toggle.sh` — the hotkey script. Records audio via `arecord`, transcribes with `whisper-cli`, copies result with `wl-copy`
-- `indicator.c` — compiled GTK3 toast overlay. Shows a pulsing "Listening..." indicator while recording, auto-dismisses result after transcription
+- `toggle.sh` — the hotkey script. Records audio via `pw-record` (PipeWire), runs streaming transcription loop with `whisper-cli`, copies result with `wl-copy`
+- `indicator.c` — compiled GTK3 toast overlay. Shows animated waves with live transcription during recording, auto-dismisses result after transcription
 - `install.sh` — one-time setup: installs deps, builds whisper.cpp + indicator, downloads model, registers GNOME hotkey
 
 ## License
